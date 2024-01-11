@@ -1,0 +1,481 @@
+#home directory
+/cluster/home/pbyerly/dormouse
+
+#dormouse bam files
+/cluster/home/swinter/gardor/mapped
+
+#reference genome 
+/cluster/home/swinter/gardor/reference/TBG_4355.h1.formatted.fa.gz
+
+#STACKS output conditions
+ref_map.pl --samples ../mapped --popmap ../mapped/popmap --out-path . -T 30 -X "populations: -r 0.80"
+populations -P .. -O . -M ../../mapped/popmap -t 40 -r 0.8 --min-maf 0.05 --write-random-snp --ordered-export --vcf --structure --plink
+
+#STACKS output working file: populations.snps.vcf.gz
+
+#####################################################################################################################
+#SNP filtering
+
+#vcf file location: /cluster/home/pbyerly/dormouse/full/populations.snps.vcf.gz
+
+module load  vcftools/0.1.17
+
+Using zlib version: 1.2.7
+After filtering, kept 103 out of 103 Individuals
+Outputting Individual Missingness
+After filtering, kept 171086 out of a possible 171086 Sites
+
+#remove duplicate and other species, also G200280CH (0.98 missing data)
+
+vcftools --gzvcf  populations.snps.vcf.gz --remove-indv P1-P01-G06-Eliomys-GBS-D180243MA.sorted --remove-indv P1-P01-B04-Eliomys-GBS-G190114BW.sorted --remove-indv P1-P01-F06-Eliomys-GBS-X190135GG.sorted 
+	--remove-indv P1-P01-H06-Eliomys-GBS-X190630GR.sorted --remove-indv P01-H06-EliomysGBSII-G200280CH.sorted --recode --stdout | gzip -c > populations.snps_indfilter.vcf.gz
+
+#SNP filter conditions: maf 0.01, 20% missing, depth 6-50
+vcftools --gzvcf populations.snps_indfilter.vcf.gz --remove-indels --maf 0.01 --min-alleles 2 --max-alleles 2 --max-missing 0.8  --min-meanDP 6 
+--max-meanDP 50 --minDP 6 --maxDP 50 --recode --stdout | gzip -c > populations.snps_indfilter_filter.vcf.gz
+
+#check missing data
+
+vcftools --gzvcf populations.snps_indfilter_filter.vcf.gz \
+--missing-indv 
+
+After filtering, kept 98 out of 98 Individuals
+Outputting Individual Missingness
+After filtering, kept 41775 out of a possible 41775 Sites
+
+#depth by site
+vcftools --gzvcf populations.snps_indfilter_filter.vcf.gz \
+--depth
+
+#VCFs:
+#all retained samples, filtered: populations.snps_indfilter_filter.vcf.gz
+
+#####################################################################################################################
+#SNPRelate: test for related individuals 
+
+module load R
+R
+
+setwd("/cluster/home/pbyerly/dormouse/full")
+
+#SNPrelate: estimate relatedness between samples 
+library(gdsfmt)
+library(SNPRelate)
+library(SeqArray)
+library(ggplot2)
+
+#convert VCF to GDS
+vcf.fn <- "populations.snps_indfilter_filter.vcf.gz"
+snpgdsVCF2GDS(vcf.fn, "dormouse.gds", method="biallelic.only")
+snpgdsSummary("dormouse.gds")
+
+The file name: /cluster/home/pbyerly/dormouse/full/dormouse.gds
+The total number of samples: 98
+The total number of SNPs: 41775
+SNP genotypes are stored in SNP-major mode (Sample X SNP).
+
+#enter metadata 
+pop_code <- scan("pop.txt", what=character())
+
+#open file 
+gds <- snpgdsOpen("dormouse.gds")
+
+set.seed(100)
+> snpset <- snpgdsLDpruning(gds, ld.threshold=0.2, autosome.only=FALSE)
+SNP pruning based on LD:
+Excluding 0 SNP (monomorphic: TRUE, MAF: NaN, missing rate: NaN)
+    # of samples: 98
+    # of SNPs: 41,775
+    using 1 thread
+    sliding window: 500,000 basepairs, Inf SNPs
+    |LD| threshold: 0.2
+    method: composite
+Chromosome HAP1_SUPER_1: 21.74%, 626/2,880
+Chromosome HAP1_SUPER_2: 21.24%, 600/2,825
+Chromosome HAP1_SUPER_3: 23.40%, 545/2,329
+Chromosome HAP1_SUPER_4: 22.30%, 470/2,108
+Chromosome HAP1_SUPER_5: 21.26%, 514/2,418
+Chromosome HAP1_SUPER_6: 23.68%, 459/1,938
+Chromosome HAP1_SUPER_7: 20.98%, 494/2,355
+Chromosome HAP1_SUPER_8: 21.76%, 432/1,985
+Chromosome HAP1_SUPER_9: 20.18%, 420/2,081
+Chromosome HAP1_SUPER_10: 23.02%, 431/1,872
+Chromosome HAP1_SUPER_11: 19.20%, 458/2,385
+Chromosome HAP1_SUPER_12: 21.88%, 338/1,545
+Chromosome HAP1_SUPER_13: 20.88%, 372/1,782
+Chromosome HAP1_SUPER_14: 21.02%, 322/1,532
+Chromosome HAP1_SUPER_15: 22.23%, 345/1,552
+Chromosome HAP1_SUPER_16: 25.80%, 266/1,031
+Chromosome HAP1_SUPER_17: 19.90%, 306/1,538
+Chromosome HAP1_SUPER_18: 20.66%, 287/1,389
+Chromosome HAP1_SUPER_19: 20.13%, 240/1,192
+Chromosome HAP1_SUPER_20: 24.19%, 246/1,017
+Chromosome HAP1_SUPER_21: 21.68%, 201/927
+Chromosome HAP1_SUPER_22: 21.58%, 213/987
+Chromosome HAP1_SUPER_23: 24.45%, 178/728
+Chromosome HAP1_SUPER_24: 20.74%, 196/945
+Chromosome HAP1_SUPER_X: 41.98%, 157/374
+Chromosome h1_46: 75.00%, 3/4
+Chromosome h1_55: 66.67%, 2/3
+Chromosome h1_63: 44.44%, 4/9
+Chromosome h1_65: 100.00%, 1/1
+Chromosome h1_66: 100.00%, 1/1
+Chromosome h1_67: 100.00%, 1/1
+Chromosome h1_68: 33.33%, 1/3
+Chromosome h1_69: 50.00%, 1/2
+Chromosome h1_79: 100.00%, 1/1
+Chromosome h1_80: 100.00%, 2/2
+Chromosome h1_81: 100.00%, 1/1
+Chromosome h1_87: 50.00%, 2/4
+Chromosome h1_91: 66.67%, 2/3
+Chromosome h1_93: 33.33%, 2/6
+Chromosome h1_111: 100.00%, 1/1
+Chromosome h1_95: 33.33%, 2/6
+Chromosome h1_105: 50.00%, 1/2
+Chromosome h1_108: 50.00%, 1/2
+Chromosome h1_110: 40.00%, 2/5
+Chromosome h1_224: 50.00%, 1/2
+Chromosome h1_308: 100.00%, 1/1
+9,131 markers are selected in total.
+
+# Get all selected snp id
+snpset.id <- unlist(unname(snpset))
+head(snpset.id)
+
+# Run PCA on unlinked loci 
+pca <- snpgdsPCA(gds, snp.id=snpset.id, num.thread=2, autosome.only=FALSE)
+
+# Get sample id
+sample.id <- read.gdsn(index.gdsn(gds, "sample.id"))
+
+# assume the order of sample IDs is as the same as population codes
+head(cbind(sample.id, pop_code))
+
+# Make a data.frame
+tab <- data.frame(sample.id = pca$sample.id,
+    pop = factor(pop_code)[match(pca$sample.id, sample.id)],
+    EV1 = pca$eigenvect[,1],    # the first eigenvector
+    EV2 = pca$eigenvect[,2],    # the second eigenvector
+    stringsAsFactors = FALSE)
+head(tab)
+
+# Draw
+myCol=c("violetred", "slateblue2", "darkgreen", "goldenrod1",  "navy", "palegreen2", "tomato", "cornflowerblue", "yellow")
+b <- ggplot(tab, aes(EV2, EV1, col = pop)) + geom_point(size = 3)
+b <- b + scale_colour_manual(values = myCol)
+b <- b + coord_equal() + theme_light()
+b + xlab("PC1") + ylab("PC2")
+ggsave("pops_PCA_0.2.pdf", width= 6, height = 6, dpi = 600 )
+
+#initial estimates of kinship using KING
+# LD pruning to get variant set
+
+gds <- snpgdsOpen("dormouse.gds")
+pruned <- unlist(snpset, use.names=FALSE)
+
+king <- snpgdsIBDKING(gds,snp.id=pruned, autosome.only=FALSE)
+
+No family is specified, and all individuals are treated as singletons.
+Relationship inference in the presence of population stratification.
+KING IBD:    the sum of all selected genotypes (0,1,2) = 3381430
+
+#0.2
+Excluding 0 SNP (monomorphic: TRUE, MAF: NaN, missing rate: NaN)
+    # of samples: 98
+    # of SNPs: 9,149
+    using 1 thread
+No family is specified, and all individuals are treated as singletons.
+Relationship inference in the presence of population stratification.
+KING IBD:    the sum of all selected genotypes (0,1,2) = 1287235
+
+kingMat <- king$kinship
+colnames(kingMat) <- rownames(kingMat) <- king$sample.id
+kinship <- snpgdsIBDSelection(king)
+
+ggplot(kinship, aes(IBS0, kinship)) +
+    geom_hline(yintercept=2^(-seq(3,9,2)/2), linetype="dashed", color="grey") +
+    geom_point(alpha=0.5) +
+    ylab("kinship estimate") +
+    theme_bw()
+ggsave("kinship_0.2.pdf", width= 6, height = 6, dpi = 600 )
+
+#add in family info
+# Get population information
+pop_code <- scan("pop.txt", what=character())
+# Get sample id
+sample.id <- read.gdsn(index.gdsn(gds, "sample.id"))
+
+# assume the order of sample IDs is as the same as population codes
+head(cbind(sample.id, pop_code))
+
+ibd.robust <- snpgdsIBDKING(gds, snp.id=pruned, sample.id=sample.id, family.id=pop_code, autosome.only=FALSE)
+# pairs of individuals
+dat <- snpgdsIBDSelection(ibd.robust)
+head(dat)
+write.csv(dat, "king_pop_0.2.csv")
+
+pdf("king_0.2.pdf")
+plot(dat$IBS0, dat$kinship)
+dev.off()
+
+#####################################################################################################################
+
+#remove related individuals from dataset
+
+cd /cluster/home/pbyerly/dormouse/full
+
+vcftools --gzvcf populations.snps_indfilter_filter.vcf.gz --remove-indv P01-F02-EliomysGBSII-G200260NI.sorted 
+--remove-indv P01-D02-EliomysGBSII-G200087NI.sorted --remove-indv P01-H02-EliomysGBSII-G210002NI.sorted --remove-indv P01-H04-EliomysGBSII-G200123ST.sorted 
+--remove-indv P01-B03-EliomysGBSII-G210004NI.sorted --remove-indv P01-E02-EliomysGBSII-G200103NI.sorted --remove-indv P01-A01-EliomysGBSIII-G210018RU.sorted 
+--remove-indv P01-B01-EliomysGBSIII-G210019RU.sorted --remove-indv P01-D01-EliomysGBSIII-G210021RU.sorted --remove-indv P01-F01-EliomysGBSIII-G210023RU.sorted 
+--remove-indv P01-G01-EliomysGBSIII-G210024RU.sorted --remove-indv P01-C01-EliomysGBSIII-G210020RU.sorted --recode --stdout | gzip -c > populations.snps_indfilter_related.vcf.gz
+
+dos2unix newnames.txt
+
+#rename samples
+bcftools reheader -s newnames.txt -o populations.snps_indfilter_related_names.vcf.gz populations.snps_indfilter_related.vcf
+
+#check names
+vcftools --gzvcf populations.snps_indfilter_related_names.vcf.gz \
+--missing-indv 
+
+#work with populations.snps_indfilter_related_names.vcf.gz
+#low quality individuals removed, related individuals removed, renamed to pub names 
+
+#depth by site
+vcftools --gzvcf populations.snps_indfilter_related_names.vcf.gz \
+--depth
+
+#sort by sample name
+bcftools query -l populations.snps_indfilter_related_names_thin.vcf.gz | sort > samples.txt
+bcftools view -S samples.txt populations.snps_indfilter_related_names_thin.vcf.gz > populations.snps_indfilter_related_names_thin_sort.vcf.gz
+
+bcftools query -l populations.snps_indfilter_related_names.vcf.gz | sort > samples.txt
+bcftools view -S samples.txt populations.snps_indfilter_related_names.vcf.gz > populations.snps_indfilter_related_names_sort.vcf.gz
+
+#check order
+vcftools --gzvcf populations.snps_indfilter_related_names_sort.vcf.gz \
+--depth
+
+###############################################################################
+#FST of thinned set with related individuals removed 
+
+module load R
+R
+
+setwd("/cluster/home/pbyerly/dormouse/full")
+
+#SNPrelate: estimate relatedness between samples 
+library(gdsfmt)
+library(SNPRelate)
+library(SeqArray)
+library(ggplot2)
+
+#convert VCF to GDS
+vcf.fn <- "populations.snps_indfilter_related_names_sort.vcf.gz"
+snpgdsVCF2GDS(vcf.fn, "dormouse_kin.gds", method="biallelic.only")
+snpgdsSummary("dormouse_kin.gds")
+The file name: /cluster/home/pbyerly/dormouse/full/dormouse_kin.gds
+The total number of samples: 86
+The total number of SNPs: 41775
+SNP genotypes are stored in SNP-major mode (Sample X SNP).
+
+#open file 
+gds_kin <- snpgdsOpen("dormouse_kin.gds")
+
+#Get sample id
+sample.id <- read.gdsn(index.gdsn(gds_kin, "sample.id"))
+#Get population information
+pop_code <- scan("pop_kin.txt", what=character())
+
+# check order of sample IDs is as the same as population codes
+head(cbind(sample.id, pop_code))
+
+set.seed(100)
+snpset <- snpgdsLDpruning(gds_kin, ld.threshold=0.2, autosome.only=FALSE)
+
+9,122 markers are selected in total.
+
+pruned <- unlist(snpset, use.names=FALSE)
+
+#FST of 
+# Two populations
+flag <- pop_code %in% c("SAX", "RH")
+samp.sel <- sample.id[flag]
+pop.sel <- pop_code[flag]
+v <- snpgdsFst(gds_kin, sample.id=samp.sel, population=as.factor(pop.sel),
+    method="W&C84", snp.id=pruned,  autosome.only=FALSE)
+ v$Fst
+summary(v$FstSNP)
+
+# Run PCA on unlinked loci 
+pca <- snpgdsPCA(gds_kin, snp.id=pruned, num.thread=2, autosome.only=FALSE)
+Excluding 1 SNP (monomorphic: TRUE, MAF: NaN, missing rate: NaN)
+    # of samples: 86
+    # of SNPs: 9,130
+    using 2 threads
+
+#get explained variance
+pc.percent <- pca$varprop*100
+head(round(pc.percent, 2))
+
+[1] 27.52  5.20  4.12  2.64  2.33  1.89
+
+# Make a data.frame
+tab <- data.frame(sample.id = pca$sample.id,
+    pop = factor(pop_code)[match(pca$sample.id, sample.id)],
+    EV1 = pca$eigenvect[,1],    # the first eigenvector
+    EV2 = pca$eigenvect[,2],    # the second eigenvector
+    stringsAsFactors = FALSE)
+head(tab)
+write.csv(tab, "PCA_pruned0.2_kin.csv")
+
+# Draw
+myCol=c("mediumseagreen",  "lightsteelblue",  "wheat", "darkolivegreen", "tomato", "rosybrown3", "gray53", "sienna3")
+b <- ggplot(tab, aes(EV2, EV1, col = pop)) + geom_point(size = 3)
+b <- b + scale_colour_manual(values = myCol)
+b <- b + coord_equal() + theme_light()
+b + xlab("PC1 (27.52%)") + ylab("PC2 (5.20%)")
+ggsave("pops_PCA_0.2_kin.pdf", width= 6, height = 6, dpi = 600 )
+
+#############################################################################################
+
+#phylogenetic tree with RAxML
+#https://github.com/ascheben/RAD_analysis_workflow/tree/master#Tree-building
+
+ module load python3/3.11.0
+ module load raxml/8.2.12
+
+#filter invariant sites with only heterozygous calls in all called individuals, full snp set with related individuals removed  
+
+python3 filterHets.py  populations.snps_indfilter_related_names_sort.vcf.gz 0.9 1 > raxml_format.vcf
+
+#Next the vcf file is converted to phylip alignment format using vcf2phylip.
+
+python3 vcf2phylip.py -i raxml_format.vcf
+
+>PHYLIP matrix saved to: raxml_format.min4.phy
+
+#A phylogeny can then by inferred using the ASC_GTRCAT model and an ascertainment bias correction (--asc-corr lewis). These options help handle the SNP input, which leads to a matrix of sites that are all variable. The number of bootstrap replicates (-#) is generally set to at least 100. Multithreaded RAxML can be run in rapid bootstrap mode using the command below.
+#install raxml: https://www.metagenomics.wiki/tools/phylogenetic-tree/construction/raxml/install
+
+#!/bin/bash
+ 
+#SBATCH --job-name=raxml_tree
+#SBATCH --error error_for_job_%j.err
+#SBATCH --output raxml_tree.out
+#SBATCH --mail-user=paige.byerly@senckenberg.de
+#SBATCH --mail-type=ALL
+ 
+# Request 100G of memory
+#SBATCH --mem=100G
+ 
+# Request 20 CPU threads
+#SBATCH --cpus-per-task=20
+ 
+# Commands to run on the cluster
+cd /cluster/home/pbyerly/dormouse/full/standard-RAxML-master
+srun raxmlHPC-PTHREADS-SSE3 -f a -V -T 12 -m ASC_GTRCAT --asc-corr lewis -p 12345 -x 12345 -# 100 -s /cluster/home/pbyerly/dormouse/full/raxml_format.min4.phy -n mysnps
+
+#To send the script to the cluster you can use the sbatch command. Replace __PARTITION__ with the required partition of servers (i.e. cpu or mem / batch or long)
+cd /cluster/home/pbyerly/dormouse/jobs
+sbatch --partition=mem raxml.sh
+
+module load R/4.3.1
+Rscript ggtree.R /cluster/home/pbyerly/dormouse/full/standard-RAxML-master/RAxML_bipartitions.mysnps popraxml.txt
+
+
+Rscript ggtree_MC.R /cluster/home/pbyerly/dormouse/full/standard-RAxML-master/RAxML_bipartitions.mysnps popraxml.txt
+
+
+############################################################################################
+
+#population structuring with STRUCTURE via structure_threader wrapper
+
+#call with ~/.local/bin/structure_threader
+
+#convert input vcf to STRUCTURE format 
+module load plink 
+plink --vcf  populations.snps_indfilter_related_names_sort.vcf.gz --recode structure --allow-extra-chr --out pops_str
+
+Total genotyping rate is 0.896726.
+41775 variants and 86 people pass filters and QC.
+
+#manually remove marker names from structure file on desktop before running job
+cd /cluster/home/pbyerly/dormouse/structure/
+~/.local/bin/structure_threader run -Klist 1 -R 1 -i pops.strct_in -o /cluster/home/pbyerly/dormouse/structure --params /cluster/home/pbyerly/dormouse/structure/mainparams.txt --ind indfile.txt -t 12 -st /cluster/home/pbyerly/.local/bin/structure
+
+#run as job
+cd /cluster/home/pbyerly/dormouse/jobs
+dos2unix structure.sh
+sbatch --partition=gpu structure.sh
+
+#substructure set
+#run as job: substructure set
+cd /cluster/home/pbyerly/dormouse/jobs
+dos2unix structure_sub.sh
+dos2unix pops_sub.strct_in
+sbatch --partition=mem structure_sub.sh
+
+#################################################################
+
+#convert VCF to .bed in PLINK for outlier analysis 
+module load PLINK
+plink --vcf populations.snps_indfilter_related_names_sort.vcf.gz --make-bed --allow-extra-chr --out populations.snps_indfilter_related_names_sort
+
+############################################################################################
+
+#ADMIXTURE
+  
+module load plink 
+
+cd /cluster/home/pbyerly/dormouse/full
+
+#export vcf into PLINK format
+vcftools --gzvcf populations.snps_indfilter_related_names_sort.vcf.gz --plink --out populations.snps_indfilter_related_names_sort.recode
+plink --file populations.snps_indfilter_related_names_sort.snps.recode --out populations.snps_indfilter_related_names_sort.snps -recode 12
+
+module load admixture
+admixture populations.snps_indfilter_related_names_sort.snps.ped 7
+
+#cross validation to pick best value of k
+for K in 1 2 3 4 5 6 7; \
+do admixture --cv thinned.snps.ped $K | tee log${K}.out; done
+
+#check results (lowest error: k ])
+grep -h CV log*.out
+
+#admixture plots
+
+module load R
+R
+tbl=read.table("thinned.snps.5.Q")
+indTable = read.csv("pop_relate.csv", sep =";",
+                      col.names = c("ind", "pop"))
+
+#basic tables
+mergedAdmixtureTable = cbind(tbl, indTable)
+ordered = mergedAdmixtureTable[order(mergedAdmixtureTable$pop),]
+
+#define population borders
+xlabels = aggregate (1:nrow(ordered), by = list (ordered[, "pop"]), FUN = mean)
+
+sampleEdges <- aggregate(1:nrow(ordered),
+                         by = list(ordered[, "pop"]), FUN = max)
+
+myCol=c("mediumseagreen",  "lightsteelblue",  "wheat", "darkolivegreen", "tomato", "rosybrown3", "gray53", "sienna3")
+
+#plot
+pdf("q5.pdf")
+q5  = barplot(t(as.matrix(subset(ordered))), col=myCol, border=NA, xlab="Population", ylab = "Ancestry", 
+       axisnames = FALSE, space = 0)
+	abline(v = sampleEdges$x, lwd = 3)
+	axis(1, at = xlabels$x - 0.5, labels = xlabels$Group.1)
+dev.off()
+
+
+
+
+
+
+
