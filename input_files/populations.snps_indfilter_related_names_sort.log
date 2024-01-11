@@ -1,0 +1,26 @@
+PLINK v1.90b6.13 64-bit (30 Nov 2019)
+Options in effect:
+  --allow-extra-chr
+  --make-bed
+  --out ex
+  --vcf populations.snps_indfilter_related_names_sort.vcf.gz
+
+Hostname: auc43166
+Working directory: /cluster/home/pbyerly/dormouse/full
+Start time: Mon Jan  8 15:13:49 2024
+
+Random number seed: 1704723229
+1031954 MB RAM detected; reserving 515977 MB for main workspace.
+--vcf: ex-temporary.bed + ex-temporary.bim + ex-temporary.fam written.
+41775 variants loaded from .bim file.
+86 people (0 males, 0 females, 86 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to ex.nosex .
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 86 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate is 0.896726.
+41775 variants and 86 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ex.bed + ex.bim + ex.fam ... done.
+
+End time: Mon Jan  8 15:13:50 2024
